@@ -2,6 +2,16 @@
   "version": 1,
   "records": [
     {
+      "id": "e1465da9-a47b-4371-9b76-de7ad5653910",
+      "kind": "earn",
+      "category": "habit",
+      "title": "背古文",
+      "points": 5,
+      "note": "",
+      "createdAt": "2026-09-27T07:36:21.086Z",
+      "deletedAt": null
+    },
+    {
       "id": "c7fc013d-a1b8-4e8a-adbf-745fd262c9e6",
       "kind": "earn",
       "category": "habit",
