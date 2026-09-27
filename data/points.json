@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "records": [
+    {
+      "id": "c7fc013d-a1b8-4e8a-adbf-745fd262c9e6",
+      "kind": "earn",
+      "category": "habit",
+      "title": "钢琴30分钟",
+      "points": 5,
+      "note": "",
+      "createdAt": "2026-09-27T02:01:59.540Z",
+      "deletedAt": null
+    },
+    {
+      "deletedAt": null,
+      "id": "c2e56150-65af-4edb-a678-33a0baef790c",
+      "kind": "earn",
+      "category": "fitness",
+      "title": "跳绳400 3‘38",
+      "points": 5,
+      "note": "",
+      "createdAt": "2026-09-27T01:28:44.466Z"
+    }
+  ],
+  "rewards": [],
+  "rules": [
+    {
+      "id": "rule-fitness-jump-rope",
+      "kind": "earn",
+      "category": "fitness",
+      "title": "跳绳 10 分钟",
+      "points": 5,
+      "enabled": true
+    },
+    {
+      "id": "rule-gaming-timeout",
+      "kind": "deduct",
+      "category": "gaming",
+      "title": "游戏超时",
+      "points": 3,
+      "enabled": true
+    },
+    {
+      "id": "rule-reading",
+      "kind": "earn",
+      "category": "habit",
+      "title": "阅读 20 分钟",
+      "points": 5,
+      "enabled": true
+    },
+    {
+      "id": "rule-habit-piano-30-min",
+      "kind": "earn",
+      "category": "habit",
+      "title": "钢琴30分钟",
+      "points": 5,
+      "enabled": true
+    }
+  ]
+}
