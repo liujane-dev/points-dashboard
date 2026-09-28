@@ -2,6 +2,46 @@
   "version": 1,
   "records": [
     {
+      "id": "fed7dfa5-396e-43b2-8d81-89a3127f91b9",
+      "kind": "earn",
+      "category": "fitness",
+      "title": "跳绳400 3‘01“77",
+      "points": 6,
+      "note": "突破记录+1",
+      "createdAt": "2026-09-28T11:42:29.360Z",
+      "deletedAt": null
+    },
+    {
+      "id": "178a6ec5-2ee9-462e-b583-4914d0835858",
+      "kind": "earn",
+      "category": "habit",
+      "title": "背古文",
+      "points": 2,
+      "note": "2026.9.27课间背",
+      "createdAt": "2026-09-28T10:19:32.634Z",
+      "deletedAt": null
+    },
+    {
+      "id": "63d69505-7e3f-4983-87b5-4dc7b2bcccb2",
+      "kind": "earn",
+      "category": "habit",
+      "title": "上培训课",
+      "points": 10,
+      "note": "2科（2026.9.27）",
+      "createdAt": "2026-09-28T10:16:45.882Z",
+      "deletedAt": null
+    },
+    {
+      "id": "82354f7a-2d8a-460e-9493-082c4f87606f",
+      "kind": "earn",
+      "category": "habit",
+      "title": "叠被子",
+      "points": 1,
+      "note": "",
+      "createdAt": "2026-09-28T10:14:41.751Z",
+      "deletedAt": null
+    },
+    {
       "id": "e1465da9-a47b-4371-9b76-de7ad5653910",
       "kind": "earn",
       "category": "habit",
