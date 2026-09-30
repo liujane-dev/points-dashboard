@@ -131,7 +131,7 @@ function App() {
   const [data, setData] = useState<PointsData>(initialData)
   const [recordForm, setRecordForm] = useState<RecordFormState>(initialRecordForm)
   const [rewardForm, setRewardForm] = useState<RewardFormState>(initialRewardForm)
-  const [status, setStatus] = useState('正在读取仓库数据...')
+  const [status, setStatus] = useState('正在读取本地数据库...')
 
   async function refreshData() {
     const nextData = await requestJson<PointsData>('/api/points')
@@ -140,7 +140,7 @@ function App() {
 
   useEffect(() => {
     refreshData()
-      .then(() => setStatus('数据来自 data/points.json'))
+      .then(() => setStatus('数据来自 data/points.sqlite'))
       .catch((error: unknown) => {
         setStatus(error instanceof Error ? error.message : '读取数据失败')
       })
@@ -222,30 +222,30 @@ function App() {
 
   async function addRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setStatus('正在写入 data/points.json...')
+    setStatus('正在写入 data/points.sqlite...')
     await requestJson<PointRecord>('/api/records', {
       method: 'POST',
       body: JSON.stringify(recordForm),
     })
     setRecordForm({ ...initialRecordForm, kind: recordForm.kind, category: recordForm.category })
     await refreshData()
-    setStatus('记录已保存到 data/points.json，记得 git commit')
+    setStatus('记录已保存到 data/points.sqlite')
   }
 
   async function addReward(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setStatus('正在写入 data/points.json...')
+    setStatus('正在写入 data/points.sqlite...')
     await requestJson<Reward>('/api/rewards', {
       method: 'POST',
       body: JSON.stringify(rewardForm),
     })
     setRewardForm(initialRewardForm)
     await refreshData()
-    setStatus('奖励已保存到 data/points.json，记得 git commit')
+    setStatus('奖励已保存到 data/points.sqlite')
   }
 
   async function deleteItem(type: 'record' | 'reward', id: string) {
-    setStatus('正在标记删除并更新 data/points.json...')
+    setStatus('正在标记删除并更新 data/points.sqlite...')
     await requestJson<{ ok: boolean }>(`/api/${type === 'record' ? 'records' : 'rewards'}/${id}`, {
       method: 'DELETE',
     })
@@ -262,7 +262,7 @@ function App() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">孩子积分管理系统</h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-                记录加分、扣分和奖励兑换。所有记录会写入仓库里的 JSON 文件，提交到 Git 后其他机器 clone 也能看到。
+                记录加分、扣分和奖励兑换。所有记录会写入本地 SQLite 数据库，数据量变大后仍能保持轻快。
               </p>
             </div>
             <p className="rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">{status}</p>
@@ -400,7 +400,7 @@ function RecordForm({
         </label>
       </div>
       <button className="mt-5 w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
-        保存到仓库 JSON
+        保存到本地数据库
       </button>
     </form>
   )
@@ -501,7 +501,7 @@ function DeletedSection({
   return (
     <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
       <h2 className="text-xl font-bold">🗂️ 已删除记录</h2>
-      <p className="mt-1 text-sm text-slate-500">这些记录保留在 data/points.json 中，但不会参与任何积分统计。</p>
+      <p className="mt-1 text-sm text-slate-500">这些记录保留在 data/points.sqlite 中，但不会参与任何积分统计。</p>
       <div className="mt-4 grid gap-3">
         {items.length === 0 ? (
           <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无已删除记录。</p>
@@ -527,7 +527,7 @@ function RulesSection({ rules }: { rules: Rule[] }) {
   return (
     <section id="rules" className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
       <h2 className="text-xl font-bold">⚙️ 规则设置</h2>
-      <p className="mt-1 text-sm text-slate-500">第一版先从 data/points.json 维护规则，后续可以加页面编辑。</p>
+      <p className="mt-1 text-sm text-slate-500">规则保存在 data/points.sqlite 中，后续可以加页面编辑。</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {rules.map((rule) => (
           <div key={rule.id} className="rounded-2xl bg-slate-50 p-4">

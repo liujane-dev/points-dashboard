@@ -1,21 +1,179 @@
 import { createServer } from 'node:http'
-import { readFile, writeFile } from 'node:fs/promises'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { DatabaseSync } from 'node:sqlite'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
-const dataFile = path.join(repoRoot, 'data', 'points.json')
+const dataDir = path.join(repoRoot, 'data')
+const jsonDataFile = path.join(dataDir, 'points.json')
+const sqliteDataFile = path.join(dataDir, 'points.sqlite')
 const port = Number(process.env.POINTS_API_PORT ?? 5174)
 
-async function readData() {
-  const raw = await readFile(dataFile, 'utf8')
-  return JSON.parse(raw)
+mkdirSync(dataDir, { recursive: true })
+
+const db = new DatabaseSync(sqliteDataFile)
+
+function initializeDatabase() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS records (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      points INTEGER NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      deleted_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS records_created_at_idx ON records (created_at DESC);
+    CREATE INDEX IF NOT EXISTS records_deleted_at_idx ON records (deleted_at);
+    CREATE INDEX IF NOT EXISTS records_category_idx ON records (category);
+
+    CREATE TABLE IF NOT EXISTS rewards (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      cost INTEGER NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      deleted_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS rewards_created_at_idx ON rewards (created_at DESC);
+    CREATE INDEX IF NOT EXISTS rewards_deleted_at_idx ON rewards (deleted_at);
+
+    CREATE TABLE IF NOT EXISTS rules (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      points INTEGER NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1
+    );
+  `)
+
+  const row = db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM records) +
+      (SELECT COUNT(*) FROM rewards) +
+      (SELECT COUNT(*) FROM rules) AS total
+  `).get()
+
+  if (Number(row?.total ?? 0) === 0 && existsSync(jsonDataFile)) {
+    importJsonData()
+  }
+
+  db.prepare('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)').run('version', '1')
 }
 
-async function writeData(data) {
-  await writeFile(dataFile, `${JSON.stringify(data, null, 2)}\n`, 'utf8')
+function importJsonData() {
+  const data = JSON.parse(readFileSync(jsonDataFile, 'utf8'))
+  const insertRecord = db.prepare(`
+    INSERT OR IGNORE INTO records (id, kind, category, title, points, note, created_at, deleted_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+  const insertReward = db.prepare(`
+    INSERT OR IGNORE INTO rewards (id, name, cost, note, created_at, deleted_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `)
+  const insertRule = db.prepare(`
+    INSERT OR IGNORE INTO rules (id, kind, category, title, points, enabled)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `)
+
+  db.exec('BEGIN')
+  try {
+    for (const record of Array.isArray(data.records) ? data.records : []) {
+      insertRecord.run(
+        ensureText(record.id, randomUUID()),
+        ensureRecordKind(record.kind),
+        ensureCategory(record.category),
+        ensureText(record.title, '未命名记录'),
+        ensurePositiveNumber(record.points),
+        ensureText(record.note, ''),
+        ensureText(record.createdAt, new Date().toISOString()),
+        record.deletedAt || null,
+      )
+    }
+
+    for (const reward of Array.isArray(data.rewards) ? data.rewards : []) {
+      insertReward.run(
+        ensureText(reward.id, randomUUID()),
+        ensureText(reward.name, '未命名奖励'),
+        ensurePositiveNumber(reward.cost),
+        ensureText(reward.note, ''),
+        ensureText(reward.createdAt, new Date().toISOString()),
+        reward.deletedAt || null,
+      )
+    }
+
+    for (const rule of Array.isArray(data.rules) ? data.rules : []) {
+      insertRule.run(
+        ensureText(rule.id, randomUUID()),
+        ensureRecordKind(rule.kind),
+        ensureCategory(rule.category),
+        ensureText(rule.title, '未命名规则'),
+        ensurePositiveNumber(rule.points),
+        rule.enabled === false ? 0 : 1,
+      )
+    }
+
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
+
+function readData() {
+  const versionRow = db.prepare('SELECT value FROM meta WHERE key = ?').get('version')
+
+  return {
+    version: Number(versionRow?.value ?? 1),
+    records: db.prepare(`
+      SELECT
+        id,
+        kind,
+        category,
+        title,
+        points,
+        note,
+        created_at AS createdAt,
+        deleted_at AS deletedAt
+      FROM records
+      ORDER BY created_at DESC
+    `).all(),
+    rewards: db.prepare(`
+      SELECT
+        id,
+        name,
+        cost,
+        note,
+        created_at AS createdAt,
+        deleted_at AS deletedAt
+      FROM rewards
+      ORDER BY created_at DESC
+    `).all(),
+    rules: db.prepare(`
+      SELECT
+        id,
+        kind,
+        category,
+        title,
+        points,
+        enabled
+      FROM rules
+      ORDER BY id ASC
+    `).all().map((rule) => ({ ...rule, enabled: Boolean(rule.enabled) })),
+  }
 }
 
 async function readBody(request) {
@@ -58,13 +216,12 @@ async function handleRequest(request, response) {
     const url = new URL(request.url ?? '/', `http://${request.headers.host}`)
 
     if (request.method === 'GET' && url.pathname === '/api/points') {
-      send(response, 200, await readData())
+      send(response, 200, readData())
       return
     }
 
     if (request.method === 'POST' && url.pathname === '/api/records') {
       const body = await readBody(request)
-      const data = await readData()
       const record = {
         id: randomUUID(),
         kind: ensureRecordKind(body.kind),
@@ -75,26 +232,32 @@ async function handleRequest(request, response) {
         createdAt: new Date().toISOString(),
         deletedAt: null,
       }
-      data.records = [record, ...(Array.isArray(data.records) ? data.records : [])]
-      await writeData(data)
+      db.prepare(`
+        INSERT INTO records (id, kind, category, title, points, note, created_at, deleted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        record.id,
+        record.kind,
+        record.category,
+        record.title,
+        record.points,
+        record.note,
+        record.createdAt,
+        record.deletedAt,
+      )
       send(response, 201, record)
       return
     }
 
     if (request.method === 'DELETE' && url.pathname.startsWith('/api/records/')) {
       const id = decodeURIComponent(url.pathname.replace('/api/records/', ''))
-      const data = await readData()
-      data.records = (Array.isArray(data.records) ? data.records : []).map((record) => {
-        return record.id === id ? { ...record, deletedAt: record.deletedAt ?? new Date().toISOString() } : record
-      })
-      await writeData(data)
+      db.prepare('UPDATE records SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ?').run(new Date().toISOString(), id)
       send(response, 200, { ok: true })
       return
     }
 
     if (request.method === 'POST' && url.pathname === '/api/rewards') {
       const body = await readBody(request)
-      const data = await readData()
       const reward = {
         id: randomUUID(),
         name: ensureText(body.name, '未命名奖励'),
@@ -103,19 +266,24 @@ async function handleRequest(request, response) {
         createdAt: new Date().toISOString(),
         deletedAt: null,
       }
-      data.rewards = [reward, ...(Array.isArray(data.rewards) ? data.rewards : [])]
-      await writeData(data)
+      db.prepare(`
+        INSERT INTO rewards (id, name, cost, note, created_at, deleted_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        reward.id,
+        reward.name,
+        reward.cost,
+        reward.note,
+        reward.createdAt,
+        reward.deletedAt,
+      )
       send(response, 201, reward)
       return
     }
 
     if (request.method === 'DELETE' && url.pathname.startsWith('/api/rewards/')) {
       const id = decodeURIComponent(url.pathname.replace('/api/rewards/', ''))
-      const data = await readData()
-      data.rewards = (Array.isArray(data.rewards) ? data.rewards : []).map((reward) => {
-        return reward.id === id ? { ...reward, deletedAt: reward.deletedAt ?? new Date().toISOString() } : reward
-      })
-      await writeData(data)
+      db.prepare('UPDATE rewards SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ?').run(new Date().toISOString(), id)
       send(response, 200, { ok: true })
       return
     }
@@ -126,6 +294,17 @@ async function handleRequest(request, response) {
   }
 }
 
-createServer(handleRequest).listen(port, () => {
+initializeDatabase()
+
+const server = createServer(handleRequest).listen(port, () => {
   console.log(`Points API listening on http://localhost:${port}`)
+  console.log(`SQLite data file: ${sqliteDataFile}`)
 })
+
+function closeDatabase() {
+  server.close()
+  db.close()
+}
+
+process.once('SIGINT', closeDatabase)
+process.once('SIGTERM', closeDatabase)
