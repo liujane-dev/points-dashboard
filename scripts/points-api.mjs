@@ -11,6 +11,7 @@ const dataDir = path.join(repoRoot, 'data')
 const jsonDataFile = path.join(dataDir, 'points.json')
 const sqliteDataFile = path.join(dataDir, 'points.sqlite')
 const port = Number(process.env.POINTS_API_PORT ?? 5174)
+const debugMode = process.env.POINTS_DEBUG === '1' || process.argv.includes('--debug')
 
 mkdirSync(dataDir, { recursive: true })
 
@@ -138,6 +139,9 @@ function readData() {
 
   return {
     version: Number(versionRow?.value ?? 1),
+    debug: {
+      enabled: debugMode,
+    },
     records: db.prepare(`
       SELECT
         id,
@@ -251,6 +255,22 @@ async function handleRequest(request, response) {
 
     if (request.method === 'DELETE' && url.pathname.startsWith('/api/records/')) {
       const id = decodeURIComponent(url.pathname.replace('/api/records/', ''))
+      if (url.searchParams.get('hard') === '1') {
+        if (!debugMode) {
+          send(response, 403, { error: 'Hard delete is only available in debug mode' })
+          return
+        }
+
+        const result = db.prepare('DELETE FROM records WHERE id = ? AND deleted_at IS NOT NULL').run(id)
+        if (result.changes === 0) {
+          send(response, 409, { error: 'Only deleted records can be hard deleted' })
+          return
+        }
+
+        send(response, 200, { ok: true })
+        return
+      }
+
       db.prepare('UPDATE records SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ?').run(new Date().toISOString(), id)
       send(response, 200, { ok: true })
       return
@@ -283,6 +303,22 @@ async function handleRequest(request, response) {
 
     if (request.method === 'DELETE' && url.pathname.startsWith('/api/rewards/')) {
       const id = decodeURIComponent(url.pathname.replace('/api/rewards/', ''))
+      if (url.searchParams.get('hard') === '1') {
+        if (!debugMode) {
+          send(response, 403, { error: 'Hard delete is only available in debug mode' })
+          return
+        }
+
+        const result = db.prepare('DELETE FROM rewards WHERE id = ? AND deleted_at IS NOT NULL').run(id)
+        if (result.changes === 0) {
+          send(response, 409, { error: 'Only deleted rewards can be hard deleted' })
+          return
+        }
+
+        send(response, 200, { ok: true })
+        return
+      }
+
       db.prepare('UPDATE rewards SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ?').run(new Date().toISOString(), id)
       send(response, 200, { ok: true })
       return
@@ -299,6 +335,7 @@ initializeDatabase()
 const server = createServer(handleRequest).listen(port, () => {
   console.log(`Points API listening on http://localhost:${port}`)
   console.log(`SQLite data file: ${sqliteDataFile}`)
+  console.log(`Debug mode: ${debugMode ? 'on' : 'off'}`)
 })
 
 function closeDatabase() {

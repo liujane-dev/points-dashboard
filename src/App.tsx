@@ -35,6 +35,9 @@ type Rule = {
 
 type PointsData = {
   version: number
+  debug?: {
+    enabled: boolean
+  }
   records: PointRecord[]
   rewards: Reward[]
   rules: Rule[]
@@ -205,6 +208,7 @@ function App() {
     return [
       ...data.records.filter((record) => !isActive(record)).map((record) => ({
         id: record.id,
+        type: 'record' as const,
         title: record.title,
         detail: `${categoryLabels[record.category]} · ${record.kind === 'earn' ? '加分' : '扣分'}`,
         points: record.kind === 'earn' ? record.points : -record.points,
@@ -212,6 +216,7 @@ function App() {
       })),
       ...data.rewards.filter((reward) => !isActive(reward)).map((reward) => ({
         id: reward.id,
+        type: 'reward' as const,
         title: reward.name,
         detail: '奖励兑换',
         points: -reward.cost,
@@ -251,6 +256,20 @@ function App() {
     })
     await refreshData()
     setStatus('已标记为 deleted，统计不会再计入')
+  }
+
+  async function hardDeleteItem(type: 'record' | 'reward', id: string) {
+    const confirmed = window.confirm('确定要从 points.sqlite 永久删除这条已删除记录吗？此操作不可恢复。')
+    if (!confirmed) {
+      return
+    }
+
+    setStatus('正在从 data/points.sqlite 永久删除...')
+    await requestJson<{ ok: boolean }>(`/api/${type === 'record' ? 'records' : 'rewards'}/${id}?hard=1`, {
+      method: 'DELETE',
+    })
+    await refreshData()
+    setStatus('已从 data/points.sqlite 永久删除')
   }
 
   return (
@@ -339,7 +358,7 @@ function App() {
             <CategorySection id="habit" title="习惯积分" emoji="🌱" records={data.records.filter((record) => isActive(record) && record.category === 'habit')} />
             <CategorySection id="gaming" title="游戏扣分" emoji="🎮" records={data.records.filter((record) => isActive(record) && record.category === 'gaming')} />
             <RewardsSection rewards={data.rewards.filter(isActive)} />
-            <DeletedSection items={deletedItems} />
+            <DeletedSection items={deletedItems} debugMode={data.debug?.enabled ?? false} onHardDelete={hardDeleteItem} />
             <RulesSection rules={data.rules} />
           </div>
         </section>
@@ -489,32 +508,55 @@ function RewardsSection({ rewards }: { rewards: Reward[] }) {
 
 function DeletedSection({
   items,
+  debugMode,
+  onHardDelete,
 }: {
   items: Array<{
     id: string
+    type: 'record' | 'reward'
     title: string
     detail: string
     points: number
     deletedAt?: string | null
   }>
+  debugMode: boolean
+  onHardDelete: (type: 'record' | 'reward', id: string) => void
 }) {
   return (
     <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-      <h2 className="text-xl font-bold">🗂️ 已删除记录</h2>
-      <p className="mt-1 text-sm text-slate-500">这些记录保留在 data/points.sqlite 中，但不会参与任何积分统计。</p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-bold">🗂️ 已删除记录</h2>
+          <p className="mt-1 text-sm text-slate-500">这些记录保留在 data/points.sqlite 中，但不会参与任何积分统计。</p>
+        </div>
+        {debugMode ? (
+          <span className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">Debug: 可永久删除</span>
+        ) : null}
+      </div>
       <div className="mt-4 grid gap-3">
         {items.length === 0 ? (
           <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无已删除记录。</p>
         ) : (
           items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 opacity-75">
+            <div key={`${item.type}-${item.id}`} className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 opacity-75 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-semibold line-through decoration-slate-400">{item.title}</p>
                 <p className="text-sm text-slate-500">
                   {item.detail} · 删除于 {item.deletedAt ? formatDateTime(item.deletedAt) : '未知时间'}
                 </p>
               </div>
-              <span className="font-bold text-slate-500">{item.points >= 0 ? '+' : ''}{item.points}</span>
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-slate-500">{item.points >= 0 ? '+' : ''}{item.points}</span>
+                {debugMode ? (
+                  <button
+                    type="button"
+                    onClick={() => onHardDelete(item.type, item.id)}
+                    className="rounded-full bg-rose-100 px-3 py-1 text-sm font-semibold text-rose-700 transition hover:bg-rose-200"
+                  >
+                    永久删除
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))
         )}

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "dev:debug": "node scripts/dev.mjs --debug",
     "dev:api": "node scripts/points-api.mjs",
+    "dev:api:debug": "node scripts/points-api.mjs --debug",
     "dev:vite": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
