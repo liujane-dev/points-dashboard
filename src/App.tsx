@@ -57,6 +57,12 @@ type RewardFormState = {
   note: string
 }
 
+type WeeklyNetPoint = {
+  key: number
+  label: string
+  net: number
+}
+
 const initialData: PointsData = {
   version: 1,
   records: [],
@@ -104,6 +110,21 @@ function isThisWeek(createdAt: string) {
   return date >= start
 }
 
+function getWeekStart(date: Date) {
+  const start = new Date(date)
+  const day = start.getDay() || 7
+  start.setHours(0, 0, 0, 0)
+  start.setDate(start.getDate() - day + 1)
+  return start
+}
+
+function formatWeekLabel(date: Date) {
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
 function formatDateTime(createdAt: string) {
   return new Intl.DateTimeFormat('zh-CN', {
     month: '2-digit',
@@ -115,6 +136,37 @@ function formatDateTime(createdAt: string) {
 
 function isActive(item: { deletedAt?: string | null }) {
   return !item.deletedAt
+}
+
+function buildWeeklyNetPoints(records: PointRecord[], rewards: Reward[], weekCount = 8) {
+  const currentWeekStart = getWeekStart(new Date())
+  const points = Array.from({ length: weekCount }, (_, index) => {
+    const weekStart = new Date(currentWeekStart)
+    weekStart.setDate(currentWeekStart.getDate() - (weekCount - index - 1) * 7)
+
+    return {
+      key: weekStart.getTime(),
+      label: formatWeekLabel(weekStart),
+      net: 0,
+    }
+  })
+  const pointByWeek = new Map(points.map((point) => [point.key, point]))
+
+  for (const record of records.filter(isActive)) {
+    const point = pointByWeek.get(getWeekStart(new Date(record.createdAt)).getTime())
+    if (point) {
+      point.net += record.kind === 'earn' ? record.points : -record.points
+    }
+  }
+
+  for (const reward of rewards.filter(isActive)) {
+    const point = pointByWeek.get(getWeekStart(new Date(reward.createdAt)).getTime())
+    if (point) {
+      point.net -= reward.cost
+    }
+  }
+
+  return points
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -225,6 +277,8 @@ function App() {
     ].sort((first, second) => new Date(second.deletedAt ?? '').getTime() - new Date(first.deletedAt ?? '').getTime())
   }, [data])
 
+  const weeklyNetPoints = useMemo(() => buildWeeklyNetPoints(data.records, data.rewards), [data])
+
   async function addRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setStatus('正在写入 data/points.sqlite...')
@@ -296,6 +350,8 @@ function App() {
           <SummaryCard label="本周净积分" value={stats.weeklyNet} tone="bg-amber-50 text-amber-700" />
           <SummaryCard label="已删除记录" value={stats.deletedCount} tone="bg-slate-100 text-slate-600" />
         </section>
+
+        <WeeklyNetChart points={weeklyNetPoints} />
 
         <section className="grid gap-6 lg:grid-cols-[240px_1fr]">
           <nav className="h-fit rounded-3xl bg-white p-3 shadow-sm ring-1 ring-black/5 lg:sticky lg:top-6">
@@ -373,6 +429,60 @@ function SummaryCard({ label, value, tone }: { label: string; value: number | st
       <p className="text-sm text-slate-500">{label}</p>
       <p className={`mt-3 inline-flex rounded-2xl px-4 py-2 text-3xl font-bold ${tone}`}>{value}</p>
     </article>
+  )
+}
+
+function WeeklyNetChart({ points }: { points: WeeklyNetPoint[] }) {
+  const width = 720
+  const height = 260
+  const padding = { top: 28, right: 24, bottom: 48, left: 48 }
+  const chartWidth = width - padding.left - padding.right
+  const chartHeight = height - padding.top - padding.bottom
+  const zeroY = padding.top + chartHeight / 2
+  const maxAbs = Math.max(1, ...points.map((point) => Math.abs(point.net)))
+  const barGap = 14
+  const barWidth = Math.max(18, chartWidth / points.length - barGap)
+
+  return (
+    <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-xl font-bold">📈 每周净积分</h2>
+          <p className="mt-1 text-sm text-slate-500">最近 {points.length} 周，已扣除扣分和奖励兑换消耗。</p>
+        </div>
+        <p className="text-sm font-semibold text-slate-500">本周 {points.at(-1)?.net ?? 0} 分</p>
+      </div>
+
+      <div className="mt-5 overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="每周净积分柱状图" className="min-w-[680px]">
+          <line x1={padding.left} x2={width - padding.right} y1={padding.top} y2={padding.top} stroke="#e2e8f0" strokeDasharray="4 6" />
+          <line x1={padding.left} x2={width - padding.right} y1={zeroY} y2={zeroY} stroke="#94a3b8" />
+          <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} stroke="#e2e8f0" strokeDasharray="4 6" />
+          <text x={padding.left - 10} y={padding.top + 4} textAnchor="end" className="fill-slate-400 text-xs">+{maxAbs}</text>
+          <text x={padding.left - 10} y={zeroY + 4} textAnchor="end" className="fill-slate-400 text-xs">0</text>
+          <text x={padding.left - 10} y={height - padding.bottom + 4} textAnchor="end" className="fill-slate-400 text-xs">-{maxAbs}</text>
+
+          {points.map((point, index) => {
+            const x = padding.left + index * (chartWidth / points.length) + barGap / 2
+            const scaledHeight = Math.abs(point.net) / maxAbs * (chartHeight / 2)
+            const y = point.net >= 0 ? zeroY - scaledHeight : zeroY
+            const color = point.net >= 0 ? '#10b981' : '#f43f5e'
+
+            return (
+              <g key={point.key}>
+                <rect x={x} y={y} width={barWidth} height={Math.max(2, scaledHeight)} rx="8" fill={color} opacity="0.9" />
+                <text x={x + barWidth / 2} y={point.net >= 0 ? y - 8 : y + scaledHeight + 18} textAnchor="middle" className="fill-slate-700 text-xs font-bold">
+                  {point.net >= 0 ? '+' : ''}{point.net}
+                </text>
+                <text x={x + barWidth / 2} y={height - 18} textAnchor="middle" className="fill-slate-500 text-xs">
+                  {point.label}
+                </text>
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+    </section>
   )
 }
 
