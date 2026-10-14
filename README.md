@@ -1,52 +1,52 @@
-# points-dashboard
+# Points Dashboard
 
-孩子积分管理系统，一个简洁的单页 Dashboard，用于记录加分、扣分和奖励兑换。
+A simple single-page dashboard for managing kids' points, including earned points, deductions, and reward redemptions.
 
-记录保存在本地轻量数据库 `data/points.sqlite`。删除记录采用软删除：写入 `deletedAt`，不从数据库移除，统计时自动忽略。
+Records are stored in a lightweight local database at `data/points.sqlite`. Deletes use soft deletion by writing `deletedAt`; deleted items remain in the database and are automatically excluded from totals.
 
-## 本地开发
+## Local Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run dev` 会同时启动：
+`npm run dev` starts both services:
 
-- 前端 Vite 开发服务器
-- 本地 SQLite API，用于读写 `data/points.sqlite`
+- The Vite frontend development server
+- The local SQLite API for reading and writing `data/points.sqlite`
 
-调试模式会在“已删除记录”中显示“永久删除”按钮，只允许永久删除已经软删除的记录：
+Debug mode shows a `Permanently Delete` button in `Deleted Items`. It only allows permanent deletion of records that have already been soft-deleted:
 
 ```bash
 npm run dev:debug
 ```
 
-如果需要在多台机器间同步数据，可以提交 SQLite 数据库文件：
+If you want to sync data across machines, commit the SQLite database file:
 
 ```bash
 git add data/points.sqlite
-git commit -m "Update points records"
-git push
+git commit -m "Update points data"
 ```
 
-## 当前范围
+## Current Scope
 
-- React + TypeScript + Vite 项目骨架
-- Tailwind CSS 基础样式
-- SQLite 本地持久化：`data/points.sqlite`
-- 总览、体能积分、游戏扣分、奖励兑换、规则设置
-- 新增加分/扣分记录
-- 新增奖励兑换记录
-- 标记删除记录，并保留删除记录查询
-- Debug 模式下永久删除已软删除记录
+- React + TypeScript + Vite project setup
+- Tailwind CSS base styling
+- Local SQLite persistence: `data/points.sqlite`
+- Dashboard, fitness points, gaming deductions, rewards, and rules sections
+- Add earned or deducted point records
+- Add reward redemption records
+- Mark records as deleted and view deleted items
+- Permanently delete soft-deleted items in debug mode
+- Weekly net points chart
 
-## 存储方案
+## Storage
 
-当前已从单文件 JSON 迁移到 `data/points.sqlite`：
+The app has migrated from a single JSON file to `data/points.sqlite`:
 
-- 写入更快：新增或删除只更新相关行，不再重写整份 JSON。
-- 查询更强：后续可以按日期、分类、删除状态加索引和分页。
-- 数据更安全：SQLite 支持事务，减少写入中断导致文件损坏的风险。
+- Faster writes: adding or deleting updates only the related rows instead of rewriting the full JSON file.
+- Better querying: dates, categories, deletion state, indexes, and pagination can be added later.
+- Safer data: SQLite transactions reduce the risk of file corruption during interrupted writes.
 
-首次启动 API 时，如果发现旧的 `data/points.json` 且数据库为空，会自动导入旧数据。当前仓库已删除 `data/points.json`，后续以 `data/points.sqlite` 为准。
+When the API starts for the first time, it automatically imports legacy `data/points.json` if that file exists and the database is empty. This repository now uses `data/points.sqlite` as the source of truth.

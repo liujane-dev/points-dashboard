@@ -97,7 +97,7 @@ function importJsonData() {
         ensureText(record.id, randomUUID()),
         ensureRecordKind(record.kind),
         ensureCategory(record.category),
-        ensureText(record.title, '未命名记录'),
+        ensureText(record.title, 'Untitled record'),
         ensurePositiveNumber(record.points),
         ensureText(record.note, ''),
         ensureText(record.createdAt, new Date().toISOString()),
@@ -108,7 +108,7 @@ function importJsonData() {
     for (const reward of Array.isArray(data.rewards) ? data.rewards : []) {
       insertReward.run(
         ensureText(reward.id, randomUUID()),
-        ensureText(reward.name, '未命名奖励'),
+        ensureText(reward.name, 'Untitled reward'),
         ensurePositiveNumber(reward.cost),
         ensureText(reward.note, ''),
         ensureText(reward.createdAt, new Date().toISOString()),
@@ -121,7 +121,7 @@ function importJsonData() {
         ensureText(rule.id, randomUUID()),
         ensureRecordKind(rule.kind),
         ensureCategory(rule.category),
-        ensureText(rule.title, '未命名规则'),
+        ensureText(rule.title, 'Untitled rule'),
         ensurePositiveNumber(rule.points),
         rule.enabled === false ? 0 : 1,
       )
@@ -230,7 +230,7 @@ async function handleRequest(request, response) {
         id: randomUUID(),
         kind: ensureRecordKind(body.kind),
         category: ensureCategory(body.category),
-        title: ensureText(body.title, '未命名记录'),
+        title: ensureText(body.title, 'Untitled record'),
         points: ensurePositiveNumber(body.points),
         note: ensureText(body.note, ''),
         createdAt: new Date().toISOString(),
@@ -280,7 +280,7 @@ async function handleRequest(request, response) {
       const body = await readBody(request)
       const reward = {
         id: randomUUID(),
-        name: ensureText(body.name, '未命名奖励'),
+        name: ensureText(body.name, 'Untitled reward'),
         cost: ensurePositiveNumber(body.cost),
         note: ensureText(body.note, ''),
         createdAt: new Date().toISOString(),

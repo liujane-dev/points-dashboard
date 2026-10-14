@@ -85,19 +85,19 @@ const initialRewardForm: RewardFormState = {
 }
 
 const categoryLabels: Record<Category, string> = {
-  fitness: '体能',
-  gaming: '游戏',
-  habit: '习惯',
-  other: '其他',
+  fitness: 'Fitness',
+  gaming: 'Gaming',
+  habit: 'Habits',
+  other: 'Other',
 }
 
 const pageLinks = [
-  { id: 'dashboard', label: '总览', emoji: '📊' },
-  { id: 'fitness', label: '体能积分', emoji: '🏃' },
-  { id: 'habit', label: '习惯积分', emoji: '🌱' },
-  { id: 'gaming', label: '游戏扣分', emoji: '🎮' },
-  { id: 'rewards', label: '奖励兑换', emoji: '🎁' },
-  { id: 'rules', label: '规则设置', emoji: '⚙️' },
+  { id: 'dashboard', label: 'Dashboard', emoji: '📊' },
+  { id: 'fitness', label: 'Fitness Points', emoji: '🏃' },
+  { id: 'habit', label: 'Habit Points', emoji: '🌱' },
+  { id: 'gaming', label: 'Gaming Deductions', emoji: '🎮' },
+  { id: 'rewards', label: 'Rewards', emoji: '🎁' },
+  { id: 'rules', label: 'Rules', emoji: '⚙️' },
 ]
 
 function isThisWeek(createdAt: string) {
@@ -119,14 +119,14 @@ function getWeekStart(date: Date) {
 }
 
 function formatWeekLabel(date: Date) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat('en-US', {
     month: '2-digit',
     day: '2-digit',
   }).format(date)
 }
 
 function formatDateTime(createdAt: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat('en-US', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -176,7 +176,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    throw new Error(`请求失败：${response.status}`)
+    throw new Error(`Request failed: ${response.status}`)
   }
 
   return response.json() as Promise<T>
@@ -186,7 +186,7 @@ function App() {
   const [data, setData] = useState<PointsData>(initialData)
   const [recordForm, setRecordForm] = useState<RecordFormState>(initialRecordForm)
   const [rewardForm, setRewardForm] = useState<RewardFormState>(initialRewardForm)
-  const [status, setStatus] = useState('正在读取本地数据库...')
+  const [status, setStatus] = useState('Loading local database...')
 
   async function refreshData() {
     const nextData = await requestJson<PointsData>('/api/points')
@@ -195,9 +195,9 @@ function App() {
 
   useEffect(() => {
     refreshData()
-      .then(() => setStatus('数据来自 data/points.sqlite'))
+      .then(() => setStatus('Data loaded from data/points.sqlite'))
       .catch((error: unknown) => {
-        setStatus(error instanceof Error ? error.message : '读取数据失败')
+        setStatus(error instanceof Error ? error.message : 'Failed to load data')
       })
   }, [])
 
@@ -237,7 +237,7 @@ function App() {
         id: record.id,
         type: 'record' as const,
         title: record.title,
-        detail: `${categoryLabels[record.category]} · ${record.kind === 'earn' ? '加分' : '扣分'}`,
+        detail: `${categoryLabels[record.category]} · ${record.kind === 'earn' ? 'Earn' : 'Deduct'}`,
         points: record.kind === 'earn' ? record.points : -record.points,
         note: record.note,
         createdAt: record.createdAt,
@@ -247,7 +247,7 @@ function App() {
         id: reward.id,
         type: 'reward' as const,
         title: reward.name,
-        detail: '奖励兑换',
+        detail: 'Reward redemption',
         points: -reward.cost,
         note: reward.note,
         createdAt: reward.createdAt,
@@ -262,7 +262,7 @@ function App() {
         id: record.id,
         type: 'record' as const,
         title: record.title,
-        detail: `${categoryLabels[record.category]} · ${record.kind === 'earn' ? '加分' : '扣分'}`,
+        detail: `${categoryLabels[record.category]} · ${record.kind === 'earn' ? 'Earn' : 'Deduct'}`,
         points: record.kind === 'earn' ? record.points : -record.points,
         deletedAt: record.deletedAt,
       })),
@@ -270,7 +270,7 @@ function App() {
         id: reward.id,
         type: 'reward' as const,
         title: reward.name,
-        detail: '奖励兑换',
+        detail: 'Reward redemption',
         points: -reward.cost,
         deletedAt: reward.deletedAt,
       })),
@@ -281,49 +281,49 @@ function App() {
 
   async function addRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setStatus('正在写入 data/points.sqlite...')
+    setStatus('Writing to data/points.sqlite...')
     await requestJson<PointRecord>('/api/records', {
       method: 'POST',
       body: JSON.stringify(recordForm),
     })
     setRecordForm({ ...initialRecordForm, kind: recordForm.kind, category: recordForm.category })
     await refreshData()
-    setStatus('记录已保存到 data/points.sqlite')
+    setStatus('Record saved to data/points.sqlite')
   }
 
   async function addReward(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setStatus('正在写入 data/points.sqlite...')
+    setStatus('Writing to data/points.sqlite...')
     await requestJson<Reward>('/api/rewards', {
       method: 'POST',
       body: JSON.stringify(rewardForm),
     })
     setRewardForm(initialRewardForm)
     await refreshData()
-    setStatus('奖励已保存到 data/points.sqlite')
+    setStatus('Reward saved to data/points.sqlite')
   }
 
   async function deleteItem(type: 'record' | 'reward', id: string) {
-    setStatus('正在标记删除并更新 data/points.sqlite...')
+    setStatus('Marking as deleted and updating data/points.sqlite...')
     await requestJson<{ ok: boolean }>(`/api/${type === 'record' ? 'records' : 'rewards'}/${id}`, {
       method: 'DELETE',
     })
     await refreshData()
-    setStatus('已标记为 deleted，统计不会再计入')
+    setStatus('Marked as deleted; it is no longer included in totals')
   }
 
   async function hardDeleteItem(type: 'record' | 'reward', id: string) {
-    const confirmed = window.confirm('确定要从 points.sqlite 永久删除这条已删除记录吗？此操作不可恢复。')
+    const confirmed = window.confirm('Permanently delete this soft-deleted item from points.sqlite? This cannot be undone.')
     if (!confirmed) {
       return
     }
 
-    setStatus('正在从 data/points.sqlite 永久删除...')
+    setStatus('Permanently deleting from data/points.sqlite...')
     await requestJson<{ ok: boolean }>(`/api/${type === 'record' ? 'records' : 'rewards'}/${id}?hard=1`, {
       method: 'DELETE',
     })
     await refreshData()
-    setStatus('已从 data/points.sqlite 永久删除')
+    setStatus('Permanently deleted from data/points.sqlite')
   }
 
   return (
@@ -333,9 +333,9 @@ function App() {
           <p className="text-sm font-semibold text-amber-600">Points Dashboard</p>
           <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">孩子积分管理系统</h1>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">Kids Points Management System</h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-                记录加分、扣分和奖励兑换。所有记录会写入本地 SQLite 数据库，数据量变大后仍能保持轻快。
+                Track points earned, points deducted, and reward redemptions. All records are stored in a local SQLite database so the app stays fast as data grows.
               </p>
             </div>
             <p className="rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">{status}</p>
@@ -343,12 +343,12 @@ function App() {
         </header>
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          <SummaryCard label="当前积分" value={stats.balance} tone="bg-emerald-50 text-emerald-700" />
-          <SummaryCard label="累计加分" value={`+${stats.totalEarned}`} tone="bg-sky-50 text-sky-700" />
-          <SummaryCard label="累计扣分" value={`-${stats.totalDeducted}`} tone="bg-rose-50 text-rose-700" />
-          <SummaryCard label="奖励消耗" value={`-${stats.totalRewardCost}`} tone="bg-violet-50 text-violet-700" />
-          <SummaryCard label="本周净积分" value={stats.weeklyNet} tone="bg-amber-50 text-amber-700" />
-          <SummaryCard label="已删除记录" value={stats.deletedCount} tone="bg-slate-100 text-slate-600" />
+          <SummaryCard label="Current Points" value={stats.balance} tone="bg-emerald-50 text-emerald-700" />
+          <SummaryCard label="Total Earned" value={`+${stats.totalEarned}`} tone="bg-sky-50 text-sky-700" />
+          <SummaryCard label="Total Deducted" value={`-${stats.totalDeducted}`} tone="bg-rose-50 text-rose-700" />
+          <SummaryCard label="Rewards Spent" value={`-${stats.totalRewardCost}`} tone="bg-violet-50 text-violet-700" />
+          <SummaryCard label="This Week Net" value={stats.weeklyNet} tone="bg-amber-50 text-amber-700" />
+          <SummaryCard label="Deleted Items" value={stats.deletedCount} tone="bg-slate-100 text-slate-600" />
         </section>
 
         <WeeklyNetChart points={weeklyNetPoints} />
@@ -376,13 +376,13 @@ function App() {
             <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold">最近记录</h2>
-                  <p className="mt-1 text-sm text-slate-500">今天 {stats.todayCount} 条记录</p>
+                  <h2 className="text-xl font-bold">Recent Activity</h2>
+                  <p className="mt-1 text-sm text-slate-500">Today {stats.todayCount} records</p>
                 </div>
               </div>
               <div className="mt-5 grid gap-3">
                 {recentItems.length === 0 ? (
-                  <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">还没有记录，先添加一条吧。</p>
+                  <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No records yet. Add one to get started.</p>
                 ) : (
                   recentItems.map((item) => (
                     <article key={`${item.type}-${item.id}`} className="flex flex-col gap-3 rounded-2xl border border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -401,7 +401,7 @@ function App() {
                           onClick={() => void deleteItem(item.type, item.id)}
                           className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-200"
                         >
-                          标记删除
+                          Delete
                         </button>
                       </div>
                     </article>
@@ -410,9 +410,9 @@ function App() {
               </div>
             </section>
 
-            <CategorySection id="fitness" title="体能积分" emoji="🏃" records={data.records.filter((record) => isActive(record) && record.category === 'fitness')} />
-            <CategorySection id="habit" title="习惯积分" emoji="🌱" records={data.records.filter((record) => isActive(record) && record.category === 'habit')} />
-            <CategorySection id="gaming" title="游戏扣分" emoji="🎮" records={data.records.filter((record) => isActive(record) && record.category === 'gaming')} />
+            <CategorySection id="fitness" title="Fitness Points" emoji="🏃" records={data.records.filter((record) => isActive(record) && record.category === 'fitness')} />
+            <CategorySection id="habit" title="Habit Points" emoji="🌱" records={data.records.filter((record) => isActive(record) && record.category === 'habit')} />
+            <CategorySection id="gaming" title="Gaming Deductions" emoji="🎮" records={data.records.filter((record) => isActive(record) && record.category === 'gaming')} />
             <RewardsSection rewards={data.rewards.filter(isActive)} />
             <DeletedSection items={deletedItems} debugMode={data.debug?.enabled ?? false} onHardDelete={hardDeleteItem} />
             <RulesSection rules={data.rules} />
@@ -447,14 +447,14 @@ function WeeklyNetChart({ points }: { points: WeeklyNetPoint[] }) {
     <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold">📈 每周净积分</h2>
-          <p className="mt-1 text-sm text-slate-500">最近 {points.length} 周，已扣除扣分和奖励兑换消耗。</p>
+          <h2 className="text-xl font-bold">📈 Weekly Net Points</h2>
+          <p className="mt-1 text-sm text-slate-500">Last {points.length} weeks, after deductions and reward redemptions.</p>
         </div>
-        <p className="text-sm font-semibold text-slate-500">本周 {points.at(-1)?.net ?? 0} 分</p>
+        <p className="text-sm font-semibold text-slate-500">This week {points.at(-1)?.net ?? 0} pts</p>
       </div>
 
       <div className="mt-5 overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="每周净积分柱状图" className="min-w-[680px]">
+        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Weekly net points bar chart" className="min-w-[680px]">
           <line x1={padding.left} x2={width - padding.right} y1={padding.top} y2={padding.top} stroke="#e2e8f0" strokeDasharray="4 6" />
           <line x1={padding.left} x2={width - padding.right} y1={zeroY} y2={zeroY} stroke="#94a3b8" />
           <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} stroke="#e2e8f0" strokeDasharray="4 6" />
@@ -497,39 +497,39 @@ function RecordForm({
 }) {
   return (
     <form onSubmit={onSubmit} className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-      <h2 className="text-xl font-bold">新增加分 / 扣分</h2>
+      <h2 className="text-xl font-bold">Add Earned / Deducted Points</h2>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className="grid gap-2 text-sm font-semibold text-slate-600">
-          类型
+          Type
           <select value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value as RecordKind })} className="rounded-2xl border border-slate-200 px-4 py-3">
-            <option value="earn">加分</option>
-            <option value="deduct">扣分</option>
+            <option value="earn">Earn</option>
+            <option value="deduct">Deduct</option>
           </select>
         </label>
         <label className="grid gap-2 text-sm font-semibold text-slate-600">
-          分类
+          Category
           <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as Category })} className="rounded-2xl border border-slate-200 px-4 py-3">
-            <option value="fitness">体能</option>
-            <option value="gaming">游戏</option>
-            <option value="habit">习惯</option>
-            <option value="other">其他</option>
+            <option value="fitness">Fitness</option>
+            <option value="gaming">Gaming</option>
+            <option value="habit">Habits</option>
+            <option value="other">Other</option>
           </select>
         </label>
         <label className="grid gap-2 text-sm font-semibold text-slate-600 sm:col-span-2">
-          事项
-          <input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="例如：跳绳 10 分钟" className="rounded-2xl border border-slate-200 px-4 py-3" />
+          Item
+          <input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Example: jump rope for 10 minutes" className="rounded-2xl border border-slate-200 px-4 py-3" />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-slate-600">
-          分值
+          Points
           <input required min="1" type="number" value={form.points} onChange={(event) => setForm({ ...form, points: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3" />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-slate-600">
-          备注
-          <input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="可选" className="rounded-2xl border border-slate-200 px-4 py-3" />
+          Note
+          <input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Optional" className="rounded-2xl border border-slate-200 px-4 py-3" />
         </label>
       </div>
       <button className="mt-5 w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
-        保存到本地数据库
+        Save to Local Database
       </button>
     </form>
   )
@@ -546,23 +546,23 @@ function RewardForm({
 }) {
   return (
     <form id="rewards" onSubmit={onSubmit} className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-      <h2 className="text-xl font-bold">新增奖励兑换</h2>
+      <h2 className="text-xl font-bold">Add Reward Redemption</h2>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className="grid gap-2 text-sm font-semibold text-slate-600 sm:col-span-2">
-          奖励
-          <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：兑换 20 分钟游戏时间" className="rounded-2xl border border-slate-200 px-4 py-3" />
+          Reward
+          <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Example: redeem 20 minutes of game time" className="rounded-2xl border border-slate-200 px-4 py-3" />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-slate-600">
-          消耗积分
+          Points Cost
           <input required min="1" type="number" value={form.cost} onChange={(event) => setForm({ ...form, cost: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3" />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-slate-600">
-          备注
-          <input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="可选" className="rounded-2xl border border-slate-200 px-4 py-3" />
+          Note
+          <input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Optional" className="rounded-2xl border border-slate-200 px-4 py-3" />
         </label>
       </div>
       <button className="mt-5 w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600">
-        保存奖励兑换
+        Save Reward Redemption
       </button>
     </form>
   )
@@ -574,7 +574,7 @@ function CategorySection({ id, title, emoji, records }: { id: string; title: str
       <h2 className="text-xl font-bold">{emoji} {title}</h2>
       <div className="mt-4 grid gap-3">
         {records.length === 0 ? (
-          <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无记录。</p>
+          <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No records yet.</p>
         ) : (
           records.map((record) => (
             <div key={record.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
@@ -596,10 +596,10 @@ function CategorySection({ id, title, emoji, records }: { id: string; title: str
 function RewardsSection({ rewards }: { rewards: Reward[] }) {
   return (
     <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-      <h2 className="text-xl font-bold">🎁 奖励兑换</h2>
+      <h2 className="text-xl font-bold">🎁 Rewards</h2>
       <div className="mt-4 grid gap-3">
         {rewards.length === 0 ? (
-          <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无奖励兑换。</p>
+          <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No reward redemptions yet.</p>
         ) : (
           rewards.map((reward) => (
             <div key={reward.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
@@ -636,23 +636,23 @@ function DeletedSection({
     <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold">🗂️ 已删除记录</h2>
-          <p className="mt-1 text-sm text-slate-500">这些记录保留在 data/points.sqlite 中，但不会参与任何积分统计。</p>
+          <h2 className="text-xl font-bold">🗂️ Deleted Items</h2>
+          <p className="mt-1 text-sm text-slate-500">These items remain in data/points.sqlite, but they are excluded from all point totals.</p>
         </div>
         {debugMode ? (
-          <span className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">Debug: 可永久删除</span>
+          <span className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">Debug: Permanent delete enabled</span>
         ) : null}
       </div>
       <div className="mt-4 grid gap-3">
         {items.length === 0 ? (
-          <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">暂无已删除记录。</p>
+          <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No deleted items.</p>
         ) : (
           items.map((item) => (
             <div key={`${item.type}-${item.id}`} className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 opacity-75 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-semibold line-through decoration-slate-400">{item.title}</p>
                 <p className="text-sm text-slate-500">
-                  {item.detail} · 删除于 {item.deletedAt ? formatDateTime(item.deletedAt) : '未知时间'}
+                  {item.detail} · Deleted at {item.deletedAt ? formatDateTime(item.deletedAt) : 'unknown time'}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -663,7 +663,7 @@ function DeletedSection({
                     onClick={() => onHardDelete(item.type, item.id)}
                     className="rounded-full bg-rose-100 px-3 py-1 text-sm font-semibold text-rose-700 transition hover:bg-rose-200"
                   >
-                    永久删除
+                    Permanently Delete
                   </button>
                 ) : null}
               </div>
@@ -678,14 +678,14 @@ function DeletedSection({
 function RulesSection({ rules }: { rules: Rule[] }) {
   return (
     <section id="rules" className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-      <h2 className="text-xl font-bold">⚙️ 规则设置</h2>
-      <p className="mt-1 text-sm text-slate-500">规则保存在 data/points.sqlite 中，后续可以加页面编辑。</p>
+      <h2 className="text-xl font-bold">⚙️ Rules</h2>
+      <p className="mt-1 text-sm text-slate-500">Rules are stored in data/points.sqlite. A rule editor can be added later.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {rules.map((rule) => (
           <div key={rule.id} className="rounded-2xl bg-slate-50 p-4">
             <p className="font-semibold">{rule.title}</p>
             <p className="mt-1 text-sm text-slate-500">
-              {categoryLabels[rule.category]} · {rule.kind === 'earn' ? '加' : '扣'} {rule.points} 分 · {rule.enabled ? '启用' : '停用'}
+              {categoryLabels[rule.category]} · {rule.kind === 'earn' ? 'Earn' : 'Deduct'} {rule.points} pts · {rule.enabled ? 'Enabled' : 'Disabled'}
             </p>
           </div>
         ))}
