@@ -100,6 +100,9 @@ const pageLinks = [
   { id: 'rules', label: 'Rules', emoji: '⚙️' },
 ]
 
+const childName = (import.meta.env.VITE_CHILD_NAME || 'Vincent').trim()
+const dashboardTitle = `${childName || 'Vincent'}'s Points Dashboard`
+
 function isThisWeek(createdAt: string) {
   const date = new Date(createdAt)
   const now = new Date()
@@ -333,7 +336,7 @@ function App() {
           <p className="text-sm font-semibold text-amber-600">Points Dashboard</p>
           <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">Kids Points Management System</h1>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">{dashboardTitle}</h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
                 Track points earned, points deducted, and reward redemptions. All records are stored in a local SQLite database so the app stays fast as data grows.
               </p>

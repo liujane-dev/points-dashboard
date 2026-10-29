@@ -16,6 +16,14 @@ npm run dev
 - The Vite frontend development server
 - The local SQLite API for reading and writing `data/points.sqlite`
 
+The child name in the page title is configurable with `VITE_CHILD_NAME`:
+
+```bash
+VITE_CHILD_NAME="Alex" npm run dev
+```
+
+Without this setting, the title defaults to `Vincent's Points Dashboard`.
+
 Debug mode shows a `Permanently Delete` button in `Deleted Items`. It only allows permanent deletion of records that have already been soft-deleted:
 
 ```bash
